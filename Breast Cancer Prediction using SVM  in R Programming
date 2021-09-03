@@ -1,0 +1,246 @@
+---
+title: "Breast Cancer R Markdoown SVM"
+author: "Sachin Sharma"
+date: "September 3, 2021"
+output:
+  word_document: default
+  html_document: default
+---
+---
+title: "Breast-Cancer-Wisconsin-Diagnostic-Data-Set-Predict-whether-the-cancer-is-benign-or-malignant"
+output: html_notebook
+---
+
+# Installing required package 
+
+
+
+```{r}
+
+install.packages("ggcorrplot") # for correlation 
+install.packages("visreg")# relation for linear regression model 
+
+```
+
+# Importing Libraries 
+
+```
+```{r}
+
+library(readr)
+
+library(ggplot2)
+library(plotly)
+library(dplyr)
+library(naniar)
+library(tidyverse)
+library(ggcorrplot) # finding the correlation with variables 
+library(caTools)# splitting data into training set test set 
+
+
+```
+
+# Importing Data 
+
+```{r}
+
+data_cancer <- read.csv("breastcancer.csv")
+head(data_cancer)
+str(data_cancer)
+
+```
+
+
+
+
+# To visualize all the variable in the data frame 
+```{r}
+data_1 <- data_cancer %>%
+  as.data.frame() %>%
+  select_if(is.numeric) %>%
+  gather(key = "variable", value = "value")
+
+ggplot(data_1, aes(value)) +
+  geom_density() +
+  facet_wrap(~variable)
+
+```
+
+
+
+# We have all the data in the numeric form, except diagnosis which is M and B 
+# Lets convert this into numeric only 
+
+```{r}
+
+data_cancer$diagnosis <- factor(data_cancer$diagnosis, levels = c("M","B"), labels = c(0,1))
+
+
+# now converting facrtors to character and then character to numeric, if we convert this directly to numeric it will  give errors 
+
+data_cancer$diagnosis <- as.character(data_cancer$diagnosis)
+
+data_cancer$diagnosis <- as.numeric(data_cancer$diagnosis)
+
+str(data_cancer)
+
+view(data_cancer)
+
+
+```
+
+# Changing the postiion of dependent variable ie. diagnosis to the extreme right of the data to avoid confusion
+
+# We will use this by uisng tidyverse function relocate() , .after(), .before() these are very handy function while changing 
+# the position of the columns . Here we need to shift diagnosis column after fractal_dimension_worst
+
+
+```{r}
+data_cancer <- data_cancer %>% relocate(diagnosis,.after= fractal_dimension_worst)
+
+
+str(data_cancer)
+str(data_cancer$diagnosis)
+```
+
+# Visualising the correlation between datasets 
+
+```{r}
+
+r <- cor(data_cancer, use="complete.obs")
+round(r,2)
+
+# It provides a solution for reordering the correlation matrix and displays the significance level on the correlogram.
+#It includes also a function for computing a matrix of correlation p-value
+ggcorrplot(r)
+
+ggcorrplot(r, hc.order = TRUE, type = "lower",
+           outline.col = "white",
+           ggtheme = ggplot2::theme_gray,
+           colors = c("#6D9EC1", "white", "#E46726"))
+
+
+
+```
+
+
+# Visualising the missing values in the data using naniar  vis_miss(data_cancer)
+# as per the above graph there is not missing values lets check this other way 
+
+```{r}
+sum(is.na(data_cancer))
+
+```
+
+
+# Lets check whther every columns have no missing values , the following code will show if there is any missing value in any column. 
+```{r}
+
+
+sapply(data_cancer,function(x)sum(is.na(x)))
+
+```
+
+# By using the above three methods it is confirmed that above data has no missing values 
+
+# Spliting data into training set and test set 
+
+```{r}
+
+split = sample.split(data_cancer$diagnosis, SplitRatio = 0.75)
+
+train_set = subset(data_cancer, split ==TRUE)
+test_set = subset(data_cancer, split ==FALSE)
+
+View(train_set)
+
+```
+
+
+
+# Feature scaling on few columns : colun 2 to colmn 5 
+
+```{r}
+
+
+train_set[, 2:5] = scale(train_set[ , 2:5])
+test_set[, 2:5] = scale(test_set[ , 2:5])
+view(train_set)
+
+data.frame(colnames(data_cancer)) # to know the index number of each colums 
+
+
+# Feature scaling on few columns : colun 14 to colmn 15 
+
+
+train_set[, 14:15] = scale(train_set[ , 14:15])
+test_set[, 14:15] = scale(test_set[ , 14:15])
+view(train_set)
+
+
+
+# Feature scaling on few columns : colun 22 to colmn 25 
+
+
+train_set[, 22:25] = scale(train_set[ , 22:25])
+test_set[, 22:25] = scale(test_set[ , 22:25])
+view(train_set)
+
+view(test_set)
+
+
+
+```
+
+
+
+
+
+# Support Vector Machine Model (SVM) 
+
+
+```{r}
+
+library(e1071)
+
+regressor_svm <- svm(formula = diagnosis ~ ., 
+                    data=train_set,
+                    type = 'C-classification',
+                    kernel = 'linear')
+
+
+```
+
+
+# Predicting the test set results 
+
+
+```{r}
+
+y_pred1 = predict(regressor_svm, newdata = test_set[-32])
+
+```
+
+# Making confusion matrix 
+
+
+
+```{r}
+
+cm = table(test_set [ , 32], y_pred1)
+cm
+
+```
+
+
+
+# The confusion matrix show the accuracy which can be calculated as : 
+
+
+```{r}
+46+89 #  135 ( Correct Prediction )
+7  # Incorrect  
+
+# Accuracy : 
+135/142 *100 # 95.07% 
+```
